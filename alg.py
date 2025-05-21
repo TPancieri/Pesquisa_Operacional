@@ -7,68 +7,109 @@ NETWORK = {
     'F': {'D': 20, 'E': 30}
 }
 
-def find_shortest_path(start, end):
+def initialize_distances(network, start):
     """
-    Encontra o caminho mais curto entre dois roteadores em uma rede.
+    Inicializa as distâncias para todos os nós como infinito, menos para o nó inicial.
     
-    start: nó inicial
-    end: nó final
-        
-    Retorna: (caminho, latência_total)
+    Args:
+        network: dicionário representando a network
+        start: nó inicial
+    Returns:
+        dict: dicionário com as distâncias iniciais
     """
-    # Inicializa as distâncias para todos os nós como infinito 
-    distances = {}
-    for router in NETWORK:
-        distances[router] = float('infinity')
-    # Distância do ponto de partida é zero
+    distances = {router: float('infinity') for router in network}
     distances[start] = 0
+    return distances
 
-    # Inicializa o dicionário que vai guardar o caminho
-    # Para cada nó, armazena qual foi o nó anterior no caminho mais curto
-    previous = {}
-    for router in NETWORK:
-        previous[router] = None
+def initialize_previous_nodes(network):
+    """
+    Inicializa o dicionário que guarda o caminho anterior de cada nó.
     
-    # Lista de nós que ainda não foram visitados
-    unvisited = list(NETWORK.keys())
-    
-    while unvisited:
-        # Encontra o nó não visitado com a menor distância
-        current = min(unvisited, key=lambda x: distances[x])
+    Args:
+        network: dicionário representando a network
         
-        if current == end:
-            break
+    Returns:
+        dict: dicionário com os nós anteriores
+    """
+    return {router: None for router in network}
+
+def find_closest_unvisited_node(distances, unvisited):
+    """
+    Encontra o nó não visitado com a menor distância.
+    
+    Args:
+        distances: dicionário com as distâncias atuais
+        unvisited: lista de nós não visitados
+        
+    Returns:
+        str: nó mais próximo não visitado
+    """
+    return min(unvisited, key=lambda x: distances[x])
+
+def update_distances(current, distances, previous, unvisited, network):
+    """
+    Atualiza as distâncias para os vizinhos do nó atual.
+    
+    Args:
+        current: nó atual sendo processado
+        distances: dicionário com as distâncias atuais
+        previous: dicionário com os nós anteriores
+        unvisited: lista de nós não visitados
+        network: dicionário representando a rede
+    """
+    for neighbor, latency in network[current].items():
+        if neighbor not in unvisited:
+            continue
             
-        # Remove da lista de não visitado
-        unvisited.remove(current)
+        distance_through_current = distances[current] + latency
         
-        # Obtém todos os vizinhos do nó atual
-        neighbors = NETWORK[current]
-        
-        # Para cada vizinho verifica se tem um caminho mais curto
-        for neighbor, latency in neighbors.items():
-            # Só analisa vizinhos que ainda não foram visitados
-            if neighbor not in unvisited:
-                continue
-                
-            # Calcula a distância total até este vizinho passando pelo nó atual
-            distance_through_current = distances[current] + latency
-            
-            # Se encontramos um caminho mais curto até este vizinho
-            if distance_through_current < distances[neighbor]:
-                # Atualiza a menor distância conhecida até este vizinho
-                distances[neighbor] = distance_through_current
-                # Registra que o melhor caminho para este vizinho passa pelo nó atual
-                previous[neighbor] = current
+        if distance_through_current < distances[neighbor]:
+            distances[neighbor] = distance_through_current
+            previous[neighbor] = current
+
+def construct_path(previous, end):
+    """
+    Constrói o caminho do fim para o início.
     
-    # Constrói o caminho do fim para o início
+    Args:
+        previous: dicionário com os nós anteriores
+        end: nó final
+        
+    Returns:
+        list: caminho do início ao fim
+    """
     path = []
     current = end
     while current is not None:
         path.append(current)
         current = previous[current]
-    
-    # Retorna o caminho (invertido para ir do início ao fim) e latência total
-    return path[::-1], distances[end] 
+    return path[::-1]
 
-find_shortest_path("A", "E")
+def find_shortest_path(start, end):
+    """
+    Encontra o caminho mais curto entre dois nós em uma network.
+    
+    Args:
+        start: nó inicial
+        end: nó final
+        
+    Returns:
+        tuple: (caminho, latência_total)
+    """
+
+    distances = initialize_distances(NETWORK, start)
+    previous = initialize_previous_nodes(NETWORK)
+    unvisited = list(NETWORK.keys())
+    
+    while unvisited:
+        current = find_closest_unvisited_node(distances, unvisited)
+        
+        if current == end:
+            break
+            
+        unvisited.remove(current)
+        update_distances(current, distances, previous, unvisited, NETWORK)
+    
+
+    path = construct_path(previous, end)
+    return path, distances[end] 
